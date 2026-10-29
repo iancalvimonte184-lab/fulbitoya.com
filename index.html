@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fulbito ⚽</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+:root {
+  --green: #b8f34a;
+  --dark: #101810;
+  --panel: #18231b;
+  --text: #f4f7f1;
+  --muted: #a6b3a6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--dark);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+}
+header {
+  padding: 18px;
+  background: #131c14;
+  border-bottom: 1px solid #304032;
+  font-size: 25px;
+  font-weight: bold;
+}
+header span { color: var(--green); }
+.layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+}
+aside {
+  padding: 20px;
+  background: #131c14;
+  min-height: 85vh;
+}
+h1 { font-size: 30px; }
+h2 { font-size: 20px; }
+p { color: var(--muted); line-height: 1.5; }
+.card {
+  background: var(--panel);
+  padding: 16px;
+  border-radius: 14px;
+  margin: 14px 0;
+  border: 1px solid #304032;
+}
+label {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+input, select {
+  width: 100%;
+  padding: 11px;
+  border-radius: 8px;
+  border: 1px solid #405040;
+  background: #101810;
+  color: white;
+}
+button {
+  padding: 12px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.primary {
+  background: var(--green);
+  color: #101810;
+}
+.secondary {
+  background: #29382b;
+  color: white;
+  border: 1px solid #405040;
+}
+.full { width: 100%; }
+.nav {
+  display: flex;
+  gap: 5px;
+}
+.nav button {
+  flex: 1;
+  font-size: 12px;
+}
+.view { display: none; }
+.view.active { display: block; }
+#map {
+  height: calc(100vh - 70px);
+  min-height: 500px;
+  width: 100%;
+}
+.small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.item {
+  padding: 12px;
+  border: 1px solid #405040;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.actions button { flex: 1; }
+@media(max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { min-height: auto; }
+  #map { height: 65vh; min-height: 400px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>⚽ fulbi<span>to</span></header>
+
+<div class="layout">
+
+<aside>
+  <h1>Más fútbol.<br><span style="color:var(--green)">Más amigos.</span></h1>
+  <p>Encontrá partidos, elegí dónde reunirte y sumate a jugar.</p>
+
+  <div class="nav">
+    <button class="primary" onclick="tab('explore')">Mapa</button>
+    <button class="secondary" onclick="tab('create')">Crear</button>
+    <button class="secondary" onclick="tab('requests')">Solicitudes</button>
+  </div>
+
+  <!-- EXPLORAR -->
+  <section id="explore" class="view active">
+    <div class="card">
+      <h2>🔎 Buscar partidos</h2>
+      <label>Categoría</label>
+      <select id="filterCategory">
+        <option value="">Todas</option>
+        <option>Recreativo</option>
+        <option>Principiante</option>
+        <option>Intermedio</option>
+        <option>Competitivo</option>
+      </select>
+      <button class="primary full" onclick="filterGames()">Buscar</button>
+      <button class="secondary full" onclick="showAll()">Mostrar todos</button>
+    </div>
+
+    <div class="card">
+      <h2>📍 ¿Cómo funciona?</h2>
+      <p class="small">
+        1. Tocá un partido del mapa.<br>
+        2. Mirá el punto de encuentro y la cancha.<br>
+        3. Pedí unirte.<br>
+        4. Esperá la decisión del organizador.
+      </p>
+    </div>
+  </section>
+
+  <!-- CREAR PARTIDO -->
+  <section id="create" class="view">
+    <div class="card">
+      <h2>⚽ Crear partido</h2>
+
+      <label>Nombre del partido</label>
+      <input id="title" placeholder="Ej. Fútbol 5 del sábado">
+
+      <label>Formato</label>
+      <select id="format">
+        <option>Fútbol 5</option>
+        <option>Fútbol 7</option>
+        <option>Fútbol 11</option>
+      </select>
+
+      <label>Categoría</label>
+      <select id="category">
+        <option>Recreativo</option>
+        <option>Principiante</option>
+        <option>Intermedio</option>
+        <option>Competitivo</option>
+      </select>
+
+      <label>Fecha</label>
+      <input type="date" id="date">
+
+      <label>Hora</label>
+      <input type="time" id="time" value="19:00">
+
+      <label>Cupos disponibles</label>
+      <select id="spots">
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option selected>4</option>
+        <option>5</option>
+        <option>6</option>
+        <option>8</option>
+        <option>10</option>
+      </select>
+
+      <label>Edad admitida</label>
+      <select id="ageRange">
+        <option>18–29</option>
+        <option>30–39</option>
+        <option>40+</option>
+        <option>Todas las edades adultas</option>
+      </select>
+
+      <hr style="border-color:#304032;margin-top:20px">
+
+      <h2>📍 Punto de encuentro</h2>
+      <p class="small">
+        Es el lugar donde se reúnen los jugadores antes de ir a jugar.
+      </p>
+
+      <label>Nombre o dirección</label>
+      <input id="meetingName" placeholder="Ej. Plaza del barrio">
+
+      <button class="secondary full" onclick="chooseLocation('meeting')">
+        📍 Marcar encuentro en el mapa
+      </button>
+
+      <hr style="border-color:#304032;margin-top:20px">
+
+      <h2>🥅 Cancha</h2>
+      <p class="small">
+        Es el lugar exacto donde se disputará el partido.
+      </p>
+
+      <label>Nombre o dirección de la cancha</label>
+      <input id="fieldName" placeholder="Ej. Complejo deportivo">
+
+      <button class="secondary full" onclick="chooseLocation('field')">
+        🥅 Marcar cancha en el mapa
+      </button>
+
+      <p class="small" id="locationStatus">
+        Todavía no seleccionaste las ubicaciones.
+      </p>
+
+      <label style="display:flex;gap:8px;align-items:flex-start">
+        <input type="checkbox" id="adult" style="width:auto">
+        Declaro que soy mayor de 18 años.
+      </label>
+
+      <button class="primary full" onclick="createGame()">
+        Publicar partido
+      </button>
+    </div>
+  </section>
+
+  <!-- SOLICITUDES -->
+  <section id="requests" class="view">
+    <div class="card">
+      <h2>📨 Solicitudes recibidas</h2>
+      <div id="received">
+        <p class="small">Todavía no hay solicitudes.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>👟 Mis solicitudes</h2>
+      <div id="sent">
+        <p class="small">Todavía no enviaste solicitudes.</p>
+      </div>
+    </div>
+  </section>
+</aside>
+
+<main>
+  <div id="map"></div>
+</main>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ===================================
+// CONFIGURACIÓN DEL MAPA
+// ===================================
+
+const map = L.map('map').setView([-34.8738, -57.8838], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+let games = [];
+let markers = [];
+let requests = [];
+let nextId = 1;
+
+let selectionMode = null;
+let meetingCoords = null;
+let fieldCoords = null;
+
+// ===================================
+// DATOS DE EJEMPLO
+// ===================================
+
+const today = new Date();
+document.getElementById('date').value =
+  new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+  .toISOString().slice(0, 10);
+
+games.push({
+  id: nextId++,
+  title: 'Fútbol 5 recreativo',
+  format: 'Fútbol 5',
+  category: 'Recreativo',
+  date: document.getElementById('date').value,
+  time: '19:30',
+  spots: 4,
+  ageRange: '18–29',
+  meetingName: 'Plaza del barrio (ejemplo)',
+  fieldName: 'Cancha del barrio (ejemplo)',
+  meeting: [-34.8738, -57.8838],
+  field: [-34.8770, -57.8800],
+  host: 'Organizador de ejemplo',
+  requests: []
+});
+
+// ===================================
+// NAVEGACIÓN
+// ===================================
+
+function tab(name) {
+  document.querySelectorAll('.view').forEach(section => {
+    section.classList.remove('active');
+  });
+
+  document.getElementById(name).classList.add('active');
+
+  setTimeout(() => map.invalidateSize(), 100);
+
+  if (name === 'requests') renderRequests();
+}
+
+// ===================================
+// SELECCIONAR UBICACIONES
+// ===================================
+
+function chooseLocation(type) {
+  selectionMode = type;
+
+  tab('create');
+
+  document.getElementById('locationStatus').textContent =
+    type === 'meeting'
+      ? 'Tocá el mapa donde se van a reunir.'
+      : 'Tocá el mapa donde está la cancha.';
+}
+
+map.on('click', function(event) {
+  if (!selectionMode) return;
+
+  const coords = [
+    event.latlng.lat,
+    event.latlng.lng
+  ];
+
+  if (selectionMode === 'meeting') {
+    meetingCoords = coords;
+
+    document.getElementById('meetingName').value =
+      'Ubicación marcada en el mapa';
+
+    document.getElementById('locationStatus').textContent =
+      '✅ Punto de encuentro seleccionado.';
+  } else {
+    fieldCoords = coords;
+
+    document.getElementById('fieldName').value =
+      'Cancha marcada en el mapa';
+
+    document.getElementById('locationStatus').textContent =
+      '✅ Cancha seleccionada.';
+  }
+
+  selectionMode = null;
+  drawMarkers();
+});
+
+// ===================================
+// CREAR UN PARTIDO
+// ===================================
+
+function createGame() {
+  const title = document.getElementById('title').value.trim();
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+
+  if (!document.getElementById('adult').checked) {
+    alert('Debés confirmar que sos mayor de 18 años.');
+    return;
+  }
+
+  if (!title || !date || !time) {
+    alert('Completá el nombre, la fecha y la hora.');
+    return;
+  }
+
+  if (!meetingCoords || !fieldCoords) {
+    alert('Primero marcá el punto de encuentro y la cancha en el mapa.');
+    return;
+  }
+
+  const game = {
+    id: nextId++,
+    title,
+    format: document.getElementById('format').value,
+    category: document.getElementById('category').value,
+    date,
+    time,
+    spots: Number(document.getElementById('spots').value),
+    ageRange: document.getElementById('ageRange').value,
+    meetingName: document.getElementById('meetingName').value.trim(),
+    fieldName: document.getElementById('fieldName').value.trim(),
+    meeting: meetingCoords,
+    field: fieldCoords,
+    host: 'Vos',
+    requests: []
+  };
+
+  games.push(game);
+
+  meetingCoords = null;
+  fieldCoords = null;
+
+  document.getElementById('title').value = '';
+  document.getElementById('meetingName').value = '';
+  document.getElementById('fieldName').value = '';
+  document.getElementById('adult').checked = false;
+
+  drawMarkers();
+  tab('explore');
+
+  map.setView(game.meeting, 14);
+
+  alert('¡Partido publicado en el mapa!');
+}
+
+// ===================================
+// MOSTRAR LOS PARTIDOS EN EL MAPA
+// ===================================
+
+function drawMarkers(list = games) {
+  markers.forEach(marker => map.removeLayer(marker));
+  markers = [];
+
+  list.forEach(game => {
+    const meetingMarker = L.marker(game.meeting).addTo(map);
+
+    meetingMarker.bindPopup(`
+      <div style="min-width:210px;color:#172219">
+        <h3>${escapeHTML(game.title)}</h3>
+        <p>
+          ⚽ ${escapeHTML(game.format)}<br>
+          Categoría: ${escapeHTML(game.category)}<br>
+          📅 ${escapeHTML(game.date)} · ${escapeHTML(game.time)}<br>
+          👥 Cupos disponibles: ${game.spots}<br>
+          Edad: ${escapeHTML(game.ageRange)}
+        </p>
+        <hr>
+        <b>📍 Punto de encuentro</b><br>
+        ${escapeHTML(game.meetingName || 'Sin nombre')}<br><br>
+        <b>🥅 Cancha</b><br>
+        ${escapeHTML(game.fieldName || 'Sin nombre')}<br><br>
+        <button onclick="showField(${game.id})">
+          Ver cancha en el mapa
+        </button>
+        <button onclick="joinGame(${game.id})">
+          Pedir unirme
+        </button>
+      </div>
+    `);
+
+    const fieldMarker = L.marker(game.field).addTo(map);
+
+    fieldMarker.bindPopup(`
+      <b>🥅 Cancha: ${escapeHTML(game.fieldName || 'Sin nombre')}</b><br>
+      Partido: ${escapeHTML(game.title)}
+    `);
+
+    markers.push(meetingMarker, fieldMarker);
+  });
+}
+
+// ===================================
+// VER LA CANCHA
+// ===================================
+
+function showField(id) {
+  const game = games.find(g => g.id === id);
+  if (!game) return;
+
+  map.setView(game.field, 16);
+
+  L.popup()
+    .setLatLng(game.field)
+    .setContent(`
+      <b>🥅 ${escapeHTML(game.fieldName)}</b><br>
+      Partido: ${escapeHTML(game.title)}
+    `)
+    .openOn(map);
+}
+
+// ===================================
+// ENVIAR SOLICITUD PARA UNIRSE
+// ===================================
+
+function joinGame(id) {
+  const game = games.find(g => g.id === id);
+
+  if (!game) return;
+
+  if (game.host === 'Vos') {
+    alert('Este es tu partido. Revisá las solicitudes recibidas.');
+    return;
+  }
+
+  if (game.spots <= 0) {
+    alert('Este partido no tiene cupos disponibles.');
+    return;
+  }
+
+  if (requests.some(r => r.gameId === id)) {
+    alert('Ya enviaste una solicitud para este partido.');
+    return;
+  }
+
+  const request = {
+    id: Date.now(),
+    gameId: id,
+    name: 'Jugador de prueba',
+    status: 'Pendiente'
+  };
+
+  requests.push(request);
+  game.requests.push(request);
+
+  renderRequests();
+
+  alert('Solicitud enviada al organizador.');
+}
+
+// ===================================
+// ACEPTAR O RECHAZAR JUGADORES
+// ===================================
+
+function decide(gameId, requestId, decision) {
+  const game = games.find(g => g.id === gameId);
+  if (!game) return;
+
+  const request = game.requests.find(r => r.id === requestId);
+  if (!request || request.status !== 'Pendiente') return;
+
+  if (decision === 'Aceptada' && game.spots <= 0) {
+    alert('Ya no quedan cupos disponibles.');
+    return;
+  }
+
+  request.status = decision;
+
+  const sentRequest = requests.find(r => r.id === requestId);
+  if (sentRequest) sentRequest.status = decision;
+
+  if (decision === 'Aceptada') {
+    game.spots--;
+  }
+
+  renderRequests();
+  drawMarkers();
+}
+
+// ===================================
+// MOSTRAR SOLICITUDES
+// ===================================
+
+function renderRequests() {
+  const received = document.getElementById('received');
+  const sent = document.getElementById('sent');
+
+  const myGames = games.filter(g => g.host === 'Vos');
+
+  received.innerHTML = myGames.length
+    ? myGames.map(game => `
+      <div class="item">
+        <b>${escapeHTML(game.title)}</b>
+        <p class="small">Solicitudes recibidas: ${game.requests.length}</p>
+
+        ${game.requests.map(request => `
+          <div class="item">
+            <b>${escapeHTML(request.name)}</b>
+            <p class="small">Estado: ${escapeHTML(request.status)}</p>
+
+            ${request.status === 'Pendiente' ? `
+              <div class="actions">
+                <button class="primary"
+                  onclick="decide(${game.id},${request.id},'Aceptada')">
+                  Aceptar
+                </button>
+
+                <button class="secondary"
+                  onclick="decide(${game.id},${request.id},'Rechazada')">
+                  Rechazar
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `).join('')
+    : '<p class="small">Todavía no creaste partidos.</p>';
+
+  sent.innerHTML = requests.length
+    ? requests.map(request => {
+        const game = games.find(g => g.id === request.gameId);
+
+        return `
+          <div class="item">
+            <b>${escapeHTML(game ? game.title : 'Partido')}</b>
+            <p class="small">Estado: ${escapeHTML(request.status)}</p>
+          </div>
+        `;
+      }).join('')
+    : '<p class="small">Todavía no enviaste solicitudes.</p>';
+}
+
+// ===================================
+// FILTRAR PARTIDOS
+// ===================================
+
+function filterGames() {
+  const category = document.getElementById('filterCategory').value;
+
+  const filtered = category
+    ? games.filter(g => g.category === category)
+    : games;
+
+  drawMarkers(filtered);
+}
+
+function showAll() {
+  drawMarkers(games);
+}
+
+// ===================================
+// PROTECCIÓN BÁSICA DEL TEXTO
+// ===================================
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
+}
+
+// ===================================
+// INICIAR LA APLICACIÓN
+// ===================================
+
+drawMarkers();
+renderRequests();
+
+</script>
+</body>
+</html>
